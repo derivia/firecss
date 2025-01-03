@@ -1,11 +1,11 @@
 class CSSManager {
 	constructor() {
 		this.cssRules = new Map();
+		this.setupMessageListener();
+		this.setupTabListeners();
 		this.loadRules().then(() => {
 			this.applyLoadedRules();
-			this.setupTabListeners();
 		});
-		this.setupMessageListener();
 	}
 
 	setupMessageListener() {
@@ -14,6 +14,8 @@ class CSSManager {
 				this.previewCSS(message.url, message.isWildcard, message.css);
 			} else if (message.type === "removeRule") {
 				this.removeRule(message.rule);
+			} else if (message.type === "updateRule") {
+				this.updateRule(message.url, message.isWildcard, message.css);
 			}
 		});
 	}
@@ -24,6 +26,7 @@ class CSSManager {
 				this.applyRulesToTab(tab);
 			}
 		});
+
 		browser.tabs.onCreated.addListener((tab) => {
 			this.applyRulesToTab(tab);
 		});
@@ -56,7 +59,10 @@ class CSSManager {
 			const rules = await browser.storage.local.get("cssRules");
 			const deleted = delete rules.cssRules[ruleString];
 			await browser.storage.local.set(rules);
+
 			if (deleted) {
+				this.cssRules.delete(ruleString);
+				await this.removeStylesFromMatchingTabs(ruleString);
 				browser.runtime.sendMessage({
 					type: "removedRule",
 					rule: ruleString,
@@ -64,6 +70,22 @@ class CSSManager {
 			}
 		} catch (error) {
 			console.error("Failed to remove rule:", ruleString);
+		}
+	}
+
+	async removeStylesFromMatchingTabs(pattern) {
+		const tabs = await browser.tabs.query({});
+		for (const tab of tabs) {
+			if (this.matchesPattern(tab.url, pattern)) {
+				try {
+					await browser.tabs.removeCSS(tab.id, {
+						code: this.cssRules.get(pattern),
+						cssOrigin: "user",
+					});
+				} catch (error) {
+					console.error(`Failed to remove CSS from ${tab.url}:`, error);
+				}
+			}
 		}
 	}
 
@@ -109,5 +131,21 @@ class CSSManager {
 			return false;
 		}
 	}
+
+	async updateRule(url, isWildcard, css) {
+		const pattern = isWildcard ? `${url}/*` : url;
+		this.cssRules.set(pattern, css);
+		await this.applyRulesToMatchingTabs(pattern);
+	}
+
+	async applyRulesToMatchingTabs(pattern) {
+		const tabs = await browser.tabs.query({});
+		for (const tab of tabs) {
+			if (this.matchesPattern(tab.url, pattern)) {
+				await this.applyRulesToTab(tab);
+			}
+		}
+	}
 }
+
 const cssManager = new CSSManager();

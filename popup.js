@@ -122,10 +122,12 @@ class PopupUI {
 			cssRules[ruleKey] = css;
 
 			await browser.storage.local.set({ cssRules });
-
-			this.urlInput.value = "";
-			this.cssInput.value = "";
-			this.wildcardCheck.checked = false;
+			await browser.runtime.sendMessage({
+				type: "updateRule",
+				url,
+				isWildcard,
+				css,
+			});
 		} catch (error) {
 			console.error("Failed to save CSS rule:", error);
 		}
