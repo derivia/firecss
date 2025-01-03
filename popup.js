@@ -74,17 +74,14 @@ class PopupUI {
 
 			if (cssRules[domain]) {
 				this.cssInput.value = cssRules[domain];
-				console.log("Loaded previous CSS for domain:", domain);
 				return;
 			}
 
 			const wildcardKey = `${domain}/*`;
 			if (cssRules[wildcardKey]) {
 				this.cssInput.value = cssRules[wildcardKey];
-				console.log("Loaded previous CSS for wildcard:", wildcardKey);
 				return;
 			}
-			console.log("No previous CSS found for domain:", domain);
 		} catch (error) {
 			console.error("Failed to load previous CSS:", error);
 		}
@@ -93,7 +90,6 @@ class PopupUI {
 	async previewCSS() {
 		const url = this.urlInput.value.trim();
 		if (!url) return;
-		console.log("Sending message to apply CSS for URL:", url);
 		try {
 			await browser.runtime.sendMessage({
 				type: "previewCSS",
@@ -101,7 +97,6 @@ class PopupUI {
 				isWildcard: this.wildcardCheck.checked,
 				css: this.cssInput.value,
 			});
-			console.log("Message sent successfully");
 		} catch (error) {
 			console.error("Failed to send message:", error);
 		}
@@ -123,15 +118,10 @@ class PopupUI {
 		try {
 			const result = await browser.storage.local.get("cssRules");
 			const cssRules = result.cssRules || {};
-			console.log("Existing rules before saving:", cssRules);
 
 			cssRules[ruleKey] = css;
 
 			await browser.storage.local.set({ cssRules });
-			console.log("CSS rule saved successfully:", ruleKey);
-
-			const updatedResult = await browser.storage.local.get("cssRules");
-			console.log("Updated rules after saving:", updatedResult.cssRules);
 
 			this.urlInput.value = "";
 			this.cssInput.value = "";

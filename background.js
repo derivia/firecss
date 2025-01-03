@@ -8,6 +8,16 @@ class CSSManager {
 		this.setupMessageListener();
 	}
 
+	setupMessageListener() {
+		browser.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
+			if (message.type === "previewCSS") {
+				this.previewCSS(message.url, message.isWildcard, message.css);
+			} else if (message.type === "removeRule") {
+				this.removeRule(message.rule);
+			}
+		});
+	}
+
 	setupTabListeners() {
 		browser.tabs.onUpdated.addListener((_tabId, changeInfo, tab) => {
 			if (changeInfo.status === "complete") {
@@ -27,7 +37,6 @@ class CSSManager {
 						code: css,
 						cssOrigin: "user",
 					});
-					console.log(`Applied CSS to ${tab.url} using pattern: ${pattern}`);
 				} catch (error) {
 					console.error(`Failed to apply CSS to ${tab.url}:`, error);
 				}
@@ -36,10 +45,25 @@ class CSSManager {
 	}
 
 	async applyLoadedRules() {
-		console.log("Applying loaded CSS rules to existing tabs...");
 		const tabs = await browser.tabs.query({});
 		for (const tab of tabs) {
 			this.applyRulesToTab(tab);
+		}
+	}
+
+	async removeRule(ruleString) {
+		try {
+			const rules = await browser.storage.local.get("cssRules");
+			const deleted = delete rules.cssRules[ruleString];
+			await browser.storage.local.set(rules);
+			if (deleted) {
+				browser.runtime.sendMessage({
+					type: "removedRule",
+					rule: ruleString,
+				});
+			}
+		} catch (error) {
+			console.error("Failed to remove rule:", ruleString);
 		}
 	}
 
@@ -47,20 +71,10 @@ class CSSManager {
 		try {
 			const result = await browser.storage.local.get("cssRules");
 			const cssRules = result.cssRules || {};
-			console.log("Loaded CSS rules from storage:", cssRules);
 			this.cssRules = new Map(Object.entries(cssRules));
-			console.log("CSS rules converted to Map:", this.cssRules);
 		} catch (error) {
 			console.error("Failed to load CSS rules:", error);
 		}
-	}
-
-	setupMessageListener() {
-		browser.runtime.onMessage.addListener((message, _sender, _sendResponse) => {
-			if (message.type === "previewCSS") {
-				this.previewCSS(message.url, message.isWildcard, message.css);
-			}
-		});
 	}
 
 	async previewCSS(url, isWildcard, css) {
@@ -77,9 +91,6 @@ class CSSManager {
 					code: css,
 					cssOrigin: "user",
 				});
-				console.log("CSS applied successfully to:", tab.url);
-			} else {
-				console.log("Tab URL does not match the pattern:", tab.url);
 			}
 		} catch (error) {
 			console.error("CSS insertion failed:", error);
