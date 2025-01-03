@@ -62,7 +62,6 @@ class CSSManager {
 
 			if (deleted) {
 				this.cssRules.delete(ruleString);
-				await this.removeStylesFromMatchingTabs(ruleString);
 				browser.runtime.sendMessage({
 					type: "removedRule",
 					rule: ruleString,
@@ -70,22 +69,6 @@ class CSSManager {
 			}
 		} catch (error) {
 			console.error("Failed to remove rule:", ruleString);
-		}
-	}
-
-	async removeStylesFromMatchingTabs(pattern) {
-		const tabs = await browser.tabs.query({});
-		for (const tab of tabs) {
-			if (this.matchesPattern(tab.url, pattern)) {
-				try {
-					await browser.tabs.removeCSS(tab.id, {
-						code: this.cssRules.get(pattern),
-						cssOrigin: "user",
-					});
-				} catch (error) {
-					console.error(`Failed to remove CSS from ${tab.url}:`, error);
-				}
-			}
 		}
 	}
 
