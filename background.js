@@ -1,7 +1,7 @@
 class CSSManager {
 	constructor() {
 		this.cssRules = new Map();
-		this.regexCache = new Map(); // Cache for compiled regex patterns
+		this.regexCache = new Map();
 		this.setupMessageListener();
 		this.setupTabListeners();
 		this.setupWebRequestListener();
@@ -38,7 +38,7 @@ class CSSManager {
 		browser.webRequest.onBeforeRequest.addListener(
 			(details) => {
 				const tabId = details.tabId;
-				if (tabId === -1) return; // Ignore non-tab requests
+				if (tabId === -1) return;
 
 				const url = details.url;
 				const combinedCSS = [];
@@ -51,7 +51,7 @@ class CSSManager {
 					this.injectCSS(tabId, combinedCSS.join("\n"));
 				}
 			},
-			{ urls: ["<all_urls>"], types: ["main_frame"] }, // Only intercept main frame requests
+			{ urls: ["<all_urls>"], types: ["main_frame"] },
 		);
 	}
 
@@ -60,7 +60,7 @@ class CSSManager {
 			await browser.tabs.insertCSS(tabId, {
 				code: css,
 				cssOrigin: "user",
-				runAt: "document_start", // Ensure CSS is injected early
+				runAt: "document_start",
 			});
 		} catch (error) {
 			console.error(`Failed to inject CSS to tab ${tabId}:`, error);

@@ -20,6 +20,81 @@ class PopupUI {
 		this.applyButton.addEventListener("click", () => this.previewCSS());
 		this.saveButton.addEventListener("click", () => this.saveCSS());
 		this.viewStylesButton.addEventListener("click", () => this.viewAllStyles());
+		this.cssInput.addEventListener(
+			"keydown",
+			this.handleIndentation.bind(this),
+		);
+		this.cssInput.addEventListener("input", this.handleClosingBrace.bind(this));
+	}
+
+	findMatchingOpenBrace(lines, currentLineIndex) {
+		let braceCount = 1;
+		for (let i = currentLineIndex - 1; i >= 0; i--) {
+			const line = lines[i];
+			if (line.includes("}")) braceCount++;
+			if (line.includes("{")) braceCount--;
+			if (braceCount === 0) return i;
+		}
+		return -1;
+	}
+
+	handleClosingBrace(e) {
+		if (e.data === "}") {
+			const { selectionStart, value } = e.target;
+			const lines = value.split("\n");
+			const currentLineIndex = lines.findIndex(
+				(_, index) =>
+					value.substring(0, selectionStart).split("\n").length - 1 === index,
+			);
+
+			if (lines[currentLineIndex].trim() === "}") {
+				const openBraceIndex = this.findMatchingOpenBrace(
+					lines,
+					currentLineIndex,
+				);
+				if (openBraceIndex !== -1) {
+					const openBraceLine = lines[openBraceIndex];
+					const baseIndent = (openBraceLine.match(/^[ ]*/) || [""])[0];
+
+					lines[currentLineIndex] = baseIndent + "}";
+					e.target.value = lines.join("\n");
+
+					const newPosition =
+						lines.slice(0, currentLineIndex).join("\n").length +
+						baseIndent.length +
+						1;
+					e.target.selectionStart = e.target.selectionEnd = newPosition;
+				}
+			}
+		}
+	}
+
+	handleIndentation(e) {
+		if (e.key === "Enter") {
+			e.preventDefault();
+			const { selectionStart, selectionEnd, value } = e.target;
+			const currentLine =
+				value.substring(0, selectionStart).split("\n").pop() || "";
+			const indentMatch = currentLine.match(/^[ ]*/);
+			const indentation = indentMatch ? indentMatch[0] : "";
+
+			const lastChar = currentLine.trim().slice(-1);
+			const extraIndent = lastChar === "{" ? "  " : "";
+			const removeIndent = currentLine.trim() === "}";
+
+			const newIndent = removeIndent
+				? indentation.slice(0, -2)
+				: indentation + extraIndent;
+			const newValue =
+				value.substring(0, selectionStart) +
+				"\n" +
+				newIndent +
+				value.substring(selectionEnd);
+
+			e.target.value = newValue;
+			const newPosition = selectionStart + newIndent.length + 1;
+			e.target.selectionStart = e.target.selectionEnd = newPosition;
+		}
 	}
 
 	async viewAllStyles() {
