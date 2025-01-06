@@ -1,6 +1,7 @@
 # FireCSS
 
-Save custom CSS to webpages based on domain and optional "subpages" matching
+Custom CSS injector for webpages based on domain and optional "subpages"
+matching with auto-indentation.
 
 ## Installation
 
