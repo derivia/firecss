@@ -1,7 +1,7 @@
 {
 	"manifest_version": 2,
 	"name": "FireCSS",
-	"version": "1.1.0",
+	"version": "1.2.1",
 	"description": "Save custom CSS to webpages",
 	"permissions": ["storage", "tabs", "<all_urls>"],
 	"icons": {
