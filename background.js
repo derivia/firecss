@@ -1,3 +1,8 @@
+/**
+ * @class CSS Manager
+ * @classdesc CSS Management class that works with local storage and tabs
+ * Doesn't have access to DOM, but has to events|messages and the external browser API
+ */
 class CSSManager {
 	constructor() {
 		this.cssRules = new Map();

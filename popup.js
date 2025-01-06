@@ -1,3 +1,7 @@
+/**
+ * @class Popup UI
+ * @classdesc Popup UI javascript that handles button click events and keypresses on textarea
+ */
 class PopupUI {
 	constructor() {
 		this.initializeElements();
@@ -20,6 +24,8 @@ class PopupUI {
 		this.applyButton.addEventListener("click", () => this.previewCSS());
 		this.saveButton.addEventListener("click", () => this.saveCSS());
 		this.viewStylesButton.addEventListener("click", () => this.viewAllStyles());
+
+		// CSS area indentation and closing brace workarounds
 		this.cssInput.addEventListener(
 			"keydown",
 			this.handleIndentation.bind(this),
@@ -27,6 +33,11 @@ class PopupUI {
 		this.cssInput.addEventListener("input", this.handleClosingBrace.bind(this));
 	}
 
+	/**
+	 * @param {string} lines All lines from the text area
+	 * @param {number} currentLineIndex The current line the cursor is
+	 * @returns {number} distance from current closing brace to matching opening brace
+	 */
 	findMatchingOpenBrace(lines, currentLineIndex) {
 		let braceCount = 1;
 		for (let i = currentLineIndex - 1; i >= 0; i--) {
@@ -38,6 +49,9 @@ class PopupUI {
 		return -1;
 	}
 
+	/**
+	 * @param {Event} Keyboard input event which carries "keypressed" data
+	 */
 	handleClosingBrace(e) {
 		if (e.data === "}") {
 			const { selectionStart, value } = e.target;
@@ -69,6 +83,12 @@ class PopupUI {
 		}
 	}
 
+	/**
+	 * @param {Event} e Keyboard event
+	 *
+	 * Tries to handle indentation based on pattern matchin using regex, keeping a
+	 * 2-space indentation for css code blocks
+	 */
 	handleIndentation(e) {
 		if (e.key === "Enter") {
 			e.preventDefault();
@@ -97,6 +117,9 @@ class PopupUI {
 		}
 	}
 
+	/**
+	 * Show all styles saved on localstorage in styles.html
+	 */
 	async viewAllStyles() {
 		try {
 			const result = await browser.storage.local.get("cssRules");
@@ -124,6 +147,9 @@ class PopupUI {
 		}
 	}
 
+	/**
+	 * Autofill domain input based on current domain
+	 */
 	async autofillCurrentDomain() {
 		try {
 			const tabs = await browser.tabs.query({
@@ -142,6 +168,9 @@ class PopupUI {
 		}
 	}
 
+	/**
+	 * Load previous css code for this page based on current domain
+	 */
 	async loadPreviousCSS(domain) {
 		try {
 			const result = await browser.storage.local.get("cssRules");
@@ -162,6 +191,9 @@ class PopupUI {
 		}
 	}
 
+	/**
+	 * Inject temporarily inserted CSS to the page
+	 */
 	async previewCSS() {
 		const url = this.urlInput.value.trim();
 		if (!url) return;
@@ -177,6 +209,9 @@ class PopupUI {
 		}
 	}
 
+	/**
+	 * Save inserted CSS to local storage with domain
+	 */
 	async saveCSS() {
 		const url = this.urlInput.value.trim();
 		if (!url) {
