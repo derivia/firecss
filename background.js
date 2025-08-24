@@ -39,6 +39,21 @@ class CSSManager {
 		});
 	}
 
+	_forceImportant(css) {
+		return css.replace(/\{([^}]+)\}/g, (match, declarations) => {
+			const importantDeclarations = declarations
+				.split(";")
+				.map((declaration) => {
+					if (declaration.trim() && !/!important/.test(declaration)) {
+						return declaration.trim() + " !important";
+					}
+					return declaration;
+				})
+				.join(";");
+			return `{${importantDeclarations}}`;
+		});
+	}
+
 	async _applyCssToTab(tabId, css) {
 		const oldCss = this.injectedCssByTab.get(tabId);
 		if (oldCss) {
@@ -49,8 +64,12 @@ class CSSManager {
 
 		if (css && css.trim()) {
 			try {
-				await browser.tabs.insertCSS(tabId, { code: css, cssOrigin: "user" });
-				this.injectedCssByTab.set(tabId, css);
+				const importantCss = this._forceImportant(css);
+				await browser.tabs.insertCSS(tabId, {
+					code: importantCss,
+					cssOrigin: "user",
+				});
+				this.injectedCssByTab.set(tabId, importantCss);
 			} catch (error) {
 				console.error(`Failed to inject CSS to tab ${tabId}:`, error);
 				this.injectedCssByTab.delete(tabId);
