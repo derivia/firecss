@@ -4,9 +4,27 @@
  */
 class PopupUI {
 	constructor() {
+		this.currentDomain = null;
 		this.initializeElements();
 		this.setupEventListeners();
-		this.autofillCurrentDomain();
+		this.initialize();
+	}
+
+	async initialize() {
+		try {
+			const tabs = await browser.tabs.query({
+				active: true,
+				currentWindow: true,
+			});
+			if (tabs.length > 0) {
+				const url = new URL(tabs[0].url);
+				this.currentDomain = url.hostname;
+			}
+		} catch (error) {
+			console.error("Failed to get current domain:", error);
+		} finally {
+			this.loadPopupState();
+		}
 	}
 
 	initializeElements() {
@@ -16,7 +34,7 @@ class PopupUI {
 		this.saveButton = document.getElementById("save");
 		this.viewStylesButton = document.getElementById("view-styles");
 		this.applyButton = document.createElement("button");
-		this.applyButton.textContent = "Apply";
+		this.applyButton.textContent = "Preview";
 		this.saveButton.parentNode.insertBefore(this.applyButton, this.saveButton);
 	}
 
@@ -25,12 +43,52 @@ class PopupUI {
 		this.saveButton.addEventListener("click", () => this.saveCSS());
 		this.viewStylesButton.addEventListener("click", () => this.viewAllStyles());
 
-		// CSS area indentation and closing brace workarounds
 		this.cssInput.addEventListener(
 			"keydown",
 			this.handleIndentation.bind(this),
 		);
 		this.cssInput.addEventListener("input", this.handleClosingBrace.bind(this));
+
+		window.addEventListener("unload", () => this.savePopupState());
+	}
+
+	async loadPopupState() {
+		if (!this.currentDomain) {
+			this.autofillCurrentDomain();
+			return;
+		}
+
+		try {
+			const key = `popupState_${this.currentDomain}`;
+			const result = await browser.storage.local.get(key);
+			if (result && result[key]) {
+				const state = result[key];
+				this.urlInput.value = state.url || this.currentDomain;
+				this.wildcardCheck.checked = state.isWildcard === true;
+				this.cssInput.value = state.css || "";
+			} else {
+				this.autofillCurrentDomain();
+			}
+		} catch (error) {
+			console.error("Failed to load popup state:", error);
+			this.autofillCurrentDomain();
+		}
+	}
+
+	async savePopupState() {
+		if (!this.currentDomain) return;
+
+		const state = {
+			url: this.urlInput.value,
+			isWildcard: this.wildcardCheck.checked,
+			css: this.cssInput.value,
+		};
+		try {
+			const key = `popupState_${this.currentDomain}`;
+			await browser.storage.local.set({ [key]: state });
+		} catch (error) {
+			console.error("Failed to save popup state:", error);
+		}
 	}
 
 	/**
@@ -151,20 +209,9 @@ class PopupUI {
 	 * Autofill domain input based on current domain
 	 */
 	async autofillCurrentDomain() {
-		try {
-			const tabs = await browser.tabs.query({
-				active: true,
-				currentWindow: true,
-			});
-			if (tabs.length > 0) {
-				const tab = tabs[0];
-				const url = new URL(tab.url);
-				const domain = url.hostname;
-				this.urlInput.value = domain;
-				this.loadPreviousCSS(domain);
-			}
-		} catch (error) {
-			console.error("Failed to autofill current domain:", error);
+		if (this.currentDomain) {
+			this.urlInput.value = this.currentDomain;
+			this.loadPreviousCSS(this.currentDomain);
 		}
 	}
 
@@ -195,13 +242,9 @@ class PopupUI {
 	 * Inject temporarily inserted CSS to the page
 	 */
 	async previewCSS() {
-		const url = this.urlInput.value.trim();
-		if (!url) return;
 		try {
 			await browser.runtime.sendMessage({
 				type: "previewCSS",
-				url,
-				isWildcard: this.wildcardCheck.checked,
 				css: this.cssInput.value,
 			});
 		} catch (error) {
@@ -220,16 +263,17 @@ class PopupUI {
 		}
 		const isWildcard = this.wildcardCheck.checked;
 		const css = this.cssInput.value.trim();
-		if (!css) {
-			console.error("CSS is empty");
-			return;
-		}
+
 		const ruleKey = isWildcard ? `${url}/*` : url;
 		try {
 			const result = await browser.storage.local.get("cssRules");
 			const cssRules = result.cssRules || {};
 
-			cssRules[ruleKey] = css;
+			if (!css) {
+				delete cssRules[ruleKey];
+			} else {
+				cssRules[ruleKey] = css;
+			}
 
 			await browser.storage.local.set({ cssRules });
 			await browser.runtime.sendMessage({
